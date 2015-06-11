@@ -60,7 +60,7 @@ var deepqlearn = deepqlearn || { REVISION: 'ALPHA' };
             stock.data.slice(
               this.current,
               (this.current + this.trading_days_past)
-            ).concat([this.capital, stock.shares])
+            ).concat([this.capital, this.get_investment_status(key).diff, stock.shares])
           )
         );
       }
@@ -80,22 +80,26 @@ var deepqlearn = deepqlearn || { REVISION: 'ALPHA' };
             value: (shares * this.current_state[stock][3])
           });
         } else if(shares < 0) {
-          var final_cash = 0;
-          var final_reward = 0;
-          for(var key in this.stocks[stock].transactions.history) {
-            var tran = this.stocks[stock].transactions.history[key];
-            var current_value = tran.shares * this.current_state[stock][3];
-            final_cash += current_value;
-            final_reward += current_value - tran.value;
-          }
-          this.capital += (final_cash + this.stocks[stock].transactions.costs);
+          var investment_status = this.get_investment_status(stock);
+          this.capital += (investment_status.value + this.stocks[stock].transactions.costs);
           this.stocks[stock].transactions.history = [];
           this.stocks[stock].transactions.costs = 0;
-          return (final_reward + this.stocks[stock].transactions.costs);
+          return (investment_status.diff + this.stocks[stock].transactions.costs);
         }
       } else {
         this.stocks[stock].transactions.costs -= this.commission;
       }
+    },
+    get_investment_status: function(stock) {
+      var investment_value = 0;
+      var investment_diff = 0;
+      for(var key in this.stocks[stock].transactions.history) {
+        var tran = this.stocks[stock].transactions.history[key];
+        var current_value = tran.shares * this.current_state[stock][3];
+        investment_value += current_value;
+        investment_diff += current_value - tran.value;
+      }
+      return {value: investment_value, diff: investment_diff}
     },
     buy: function(stock) {
       this.make_transaction(stock, Math.floor(this.amount / this.current_state[stock][3]));
